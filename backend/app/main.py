@@ -9,7 +9,10 @@ from backend.app.api.routes.chat_ws import router as ws_router
 from backend.app.api.routes.admin import router as admin_router
 
 # ✅ CREATE APP FIRST (VERY IMPORTANT)
-app = FastAPI()
+app = FastAPI(
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 # ✅ CORS (FIXED)
 app.add_middleware(
