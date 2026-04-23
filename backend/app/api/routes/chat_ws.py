@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict
+from datetime import datetime
 
 from backend.app.core.encryption import encrypt_message
 from backend.app.db.database import SessionLocal
@@ -7,7 +8,7 @@ from backend.app.db import models
 
 router = APIRouter()
 
-# Store active connections
+# Active connections
 active_connections: Dict[int, WebSocket] = {}
 
 
@@ -23,8 +24,7 @@ async def broadcast_online_users():
                 "type": "online_users",
                 "users": online_users
             })
-        except:
-            # Remove broken connection
+        except Exception:
             active_connections.pop(user_id, None)
 
 
@@ -39,7 +39,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 
     print(f"✅ User {user_id} connected")
 
-    # Broadcast updated online users
     await broadcast_online_users()
 
     try:
@@ -54,6 +53,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             # 💬 MESSAGE
             # =========================
             if event_type == "message":
+
+                if not receiver_id:
+                    print("⚠️ Missing receiver_id")
+                    continue
 
                 raw_message = data.get("message") or ""
 
@@ -86,24 +89,24 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                         "file_url": data.get("file_url"),
                         "file_type": data.get("file_type"),
                         "file_name": data.get("file_name"),
+                        "timestamp": str(datetime.utcnow())
                     }
 
-                    # ✅ Send to receiver (if online)
+                    # Send to receiver
                     if receiver_id in active_connections:
                         try:
                             await active_connections[receiver_id].send_json(payload)
                             print("📨 Sent to receiver")
-                        except:
+                        except Exception:
                             active_connections.pop(receiver_id, None)
-
                     else:
                         print("📴 Receiver offline")
 
-                    # ✅ Send back to sender (important for UI sync)
+                    # Send back to sender
                     try:
                         await websocket.send_json(payload)
-                    except:
-                        print("⚠️ Failed to send back to sender")
+                    except Exception:
+                        print("⚠️ Failed to send to sender")
 
                 except Exception as e:
                     print("❌ DB ERROR:", e)
@@ -122,7 +125,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                             "type": "typing",
                             "sender_id": user_id
                         })
-                    except:
+                    except Exception:
                         active_connections.pop(receiver_id, None)
 
             # =========================
@@ -138,18 +141,15 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                             "type": "seen",
                             "message_id": message_id
                         })
-                    except:
+                    except Exception:
                         active_connections.pop(receiver_id, None)
 
     except WebSocketDisconnect:
         print(f"❌ User {user_id} disconnected")
-
         active_connections.pop(user_id, None)
-
         await broadcast_online_users()
 
     except Exception as e:
         print("❌ WebSocket ERROR:", e)
-
         active_connections.pop(user_id, None)
         await broadcast_online_users()
