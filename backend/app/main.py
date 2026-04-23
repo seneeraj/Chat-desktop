@@ -7,6 +7,15 @@ from backend.app.api.routes.auth import router as auth_router
 from backend.app.api.routes.chat import router as chat_router
 from backend.app.api.routes.chat_ws import router as ws_router
 from backend.app.api.routes.admin import router as admin_router
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ✅ CREATE APP FIRST (VERY IMPORTANT)
 app = FastAPI(
