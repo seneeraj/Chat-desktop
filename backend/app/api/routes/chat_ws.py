@@ -1,28 +1,30 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict
+
 from backend.app.core.encryption import encrypt_message
 from backend.app.db.database import SessionLocal
 from backend.app.db import models
 
 router = APIRouter()
 
+# Store active connections
 active_connections: Dict[int, WebSocket] = {}
 
 
 # ==============================
-# 🔥 Broadcast online users (SAFE)
+# 🔥 Broadcast online users
 # ==============================
 async def broadcast_online_users():
-    online = list(active_connections.keys())
+    online_users = list(active_connections.keys())
 
     for user_id, ws in list(active_connections.items()):
         try:
             await ws.send_json({
                 "type": "online_users",
-                "users": online
+                "users": online_users
             })
         except:
-            # remove broken connection
+            # Remove broken connection
             active_connections.pop(user_id, None)
 
 
@@ -37,6 +39,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 
     print(f"✅ User {user_id} connected")
 
+    # Broadcast updated online users
     await broadcast_online_users()
 
     try:
@@ -53,7 +56,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             if event_type == "message":
 
                 raw_message = data.get("message") or ""
-                print("💬 Saving message:", raw_message)
 
                 db = SessionLocal()
 
@@ -73,12 +75,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                     db.commit()
                     db.refresh(new_msg)
 
-                    print(f"✅ SAVED MESSAGE ID: {new_msg.id}")
+                    print(f"✅ Message saved: {new_msg.id}")
 
                     payload = {
                         "type": "message",
                         "id": new_msg.id,
                         "sender_id": user_id,
+                        "receiver_id": receiver_id,
                         "message": raw_message,
                         "file_url": data.get("file_url"),
                         "file_type": data.get("file_type"),
@@ -94,9 +97,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                             active_connections.pop(receiver_id, None)
 
                     else:
-                        print("📴 User offline → saved only")
+                        print("📴 Receiver offline")
 
-                    # ✅ ALWAYS send back to sender (IMPORTANT FIX)
+                    # ✅ Send back to sender (important for UI sync)
                     try:
                         await websocket.send_json(payload)
                     except:
@@ -112,6 +115,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             # ✍️ TYPING
             # =========================
             elif event_type == "typing":
+
                 if receiver_id in active_connections:
                     try:
                         await active_connections[receiver_id].send_json({
@@ -125,6 +129,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             # 👁️ SEEN
             # =========================
             elif event_type == "seen":
+
                 message_id = data.get("message_id")
 
                 if receiver_id in active_connections:
@@ -141,5 +146,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 
         active_connections.pop(user_id, None)
 
-        await broadcast_online_users()     
-       
+        await broadcast_online_users()
+
+    except Exception as e:
+        print("❌ WebSocket ERROR:", e)
+
+        active_connections.pop(user_id, None)
+        await broadcast_online_users()
