@@ -1,33 +1,55 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+const { app, BrowserWindow } = require("electron");
+const path = require("path");
 
-from backend.app.api.routes.auth import router as auth_router
-from backend.app.api.routes.chat import router as chat_router
-from backend.app.api.routes.chat_ws import router as ws_router
+let mainWindow;
 
-# DB IMPORTS
-from backend.app.db.database import engine
-from backend.app.db import models
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    title: "Approval Based Chat App",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
 
-app = FastAPI()
+  let indexPath;
 
-# ✅ FORCE DB TABLE CREATION HERE
-models.Base.metadata.create_all(bind=engine)
+  if (app.isPackaged) {
+    // ✅ When running EXE
+    indexPath = path.join(
+      process.resourcesPath,
+      "app",
+      "frontend",
+      "build",
+      "index.html"
+    );
+  } else {
+    // ✅ When running locally
+    indexPath = path.join(
+      __dirname,
+      "frontend",
+      "build",
+      "index.html"
+    );
+  }
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+  console.log("Loading:", indexPath);
 
-# Routers
-app.include_router(auth_router)
-app.include_router(chat_router)
-app.include_router(ws_router)
+  mainWindow.loadFile(indexPath);
 
-@app.get("/")
-def root():
-    return {"msg": "API running"}
+  mainWindow.webContents.openDevTools();
+}
+
+app.whenReady().then(() => {
+  createWindow();
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
