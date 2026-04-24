@@ -17,7 +17,7 @@ function createWindow() {
   let indexPath;
 
   if (app.isPackaged) {
-    // ✅ When running EXE
+    # When running EXE
     indexPath = path.join(
       process.resourcesPath,
       "app",
@@ -26,7 +26,7 @@ function createWindow() {
       "index.html"
     );
   } else {
-    // ✅ When running locally
+    # When running locally
     indexPath = path.join(
       __dirname,
       "frontend",
