@@ -57,6 +57,12 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 
     print("🔥 LOGIN HIT:", user.username)
 
+
+    users = db.query(models.User).all()
+    print("🔥 ALL USERS IN DB:", [(u.id, u.username, u.email) for u in users])
+
+    
+
     # ✅ SUPPORT BOTH username OR email (robust)
     db_user = db.query(models.User).filter(
         (models.User.username == user.username) |
