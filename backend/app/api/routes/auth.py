@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import bcrypt
+
 from backend.app.db.database import get_db
 from backend.app.db import models, schemas
 from backend.app.core.security import create_access_token
-import bcrypt
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/signup")
 def signup(user: schemas.UserSignup, db: Session = Depends(get_db)):
 
-    # Check if user already exists
+    # ✅ Check if username already exists
     existing_user = db.query(models.User).filter(
         models.User.username == user.username
     ).first()
@@ -20,10 +21,10 @@ def signup(user: schemas.UserSignup, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-    # Hash password
+    # ✅ Hash password
     hashed = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
 
-    # Admin logic
+    # ✅ Admin logic
     if user.username.lower() == "admin":
         role = "ADMIN"
         status = "ACTIVE"
@@ -31,6 +32,7 @@ def signup(user: schemas.UserSignup, db: Session = Depends(get_db)):
         role = "USER"
         status = "PENDING"
 
+    # ✅ Create user
     db_user = models.User(
         username=user.username,
         email=user.email,
@@ -41,8 +43,12 @@ def signup(user: schemas.UserSignup, db: Session = Depends(get_db)):
 
     db.add(db_user)
     db.commit()
+    db.refresh(db_user)   # ✅ important
 
-    return {"msg": "Signup successful"}
+    return {
+        "msg": "Signup successful",
+        "user_id": db_user.id
+    }
 
 
 # ---------------- LOGIN ----------------
@@ -51,26 +57,27 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
 
     print("🔥 LOGIN HIT:", user.username)
 
-    # Get user from DB
+    # ✅ SUPPORT BOTH username OR email (robust)
     db_user = db.query(models.User).filter(
-        models.User.username == user.username
+        (models.User.username == user.username) |
+        (models.User.email == user.username)
     ).first()
 
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Check approval
+    # ✅ Approval check
     if db_user.approval_status != "ACTIVE":
         raise HTTPException(status_code=403, detail="User not approved")
 
-    # Check password
+    # ✅ Password check
     if not bcrypt.checkpw(user.password.encode(), db_user.password_hash.encode()):
         raise HTTPException(status_code=401, detail="Wrong password")
 
-    # 🔥 CREATE TOKEN (FIXED)
+    # ✅ Create token
     token = create_access_token({
         "user_id": db_user.id,
-        "username": db_user.username,   # ✅ IMPORTANT FIX
+        "username": db_user.username,
         "role": db_user.role
     })
 
