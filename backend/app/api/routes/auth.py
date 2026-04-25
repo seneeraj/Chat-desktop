@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy.orm import Session
 import bcrypt
 
@@ -95,3 +96,17 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
             "role": db_user.role
         }
     }
+
+
+
+@router.delete("/delete-user/{username}")
+def delete_user(username: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == username).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(user)
+    db.commit()
+
+    return {"msg": f"{username} deleted"}
