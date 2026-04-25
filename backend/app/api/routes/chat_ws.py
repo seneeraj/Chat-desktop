@@ -2,9 +2,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict
 from datetime import datetime
 
-from backend.app.core.encryption import encrypt_message
-from backend.app.db.database import SessionLocal
-from backend.app.db import models
+from app.core.encryption import encrypt_message
+from app.db.database import SessionLocal
+from app.db import models
 
 router = APIRouter()
 
