@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 
-from backend.app.db.database import get_db
-from backend.app.db import models
-from backend.app.api.deps import get_current_user
-from backend.app.core.encryption import decrypt_message
+from app.db.database import get_db
+from app.db import models
+from app.api.deps import get_current_user
+from app.core.encryption import decrypt_message
 
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
