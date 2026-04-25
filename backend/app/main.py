@@ -9,7 +9,10 @@ from app.api.routes.chat_ws import router as ws_router
 from app.db.database import engine
 from app.db import models
 
-app = FastAPI()
+app = FastAPI(
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 models.Base.metadata.create_all(bind=engine)
 
